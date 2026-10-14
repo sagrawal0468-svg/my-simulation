@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#05080d" />
+<title>Earth · Newtonian Orbit</title>
+<style>
+  :root{color-scheme:dark;--ink:#f1f2ef;--dim:#abb7c8;--glass:rgba(12,19,30,.78);--line:rgba(222,232,245,.13);--accent:#c8d9ef}
+  *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05080d;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;bottom:clamp(14px,3vh,32px);left:50%;transform:translateX(-50%);width:min(930px,calc(100vw - 44px));padding:19px 21px 16px;display:flex;align-items:center;gap:24px;background:var(--glass);border:1px solid var(--line);border-radius:17px;backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 18px 70px rgba(0,0,0,.27);transition:opacity .25s,transform .25s;z-index:2}
+  .panel.hidden{opacity:0;pointer-events:none;transform:translate(-50%,22px)}
+  .sliders{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:23px;flex:1;min-width:0}
+  .slider-wrap{min-width:0}.meta{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px;font-size:12px;letter-spacing:.015em;white-space:nowrap}.meta label{color:#bbc7d6}.value{color:#fff;font-variant-numeric:tabular-nums;font-weight:600;font-size:12px}
+  input[type=range]{width:100%;height:15px;margin:0;cursor:pointer;appearance:none;-webkit-appearance:none;background:transparent;touch-action:pan-x}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;background:linear-gradient(90deg,#95b4dc,#586e8e);border-radius:3px}
+  input[type=range]::-moz-range-track{height:3px;background:#7f9bbd;border-radius:3px}
+  input[type=range]::-webkit-slider-thumb{appearance:none;width:15px;height:15px;border-radius:50%;background:#ecf3ff;border:3px solid #a8bfdc;box-shadow:0 0 9px #8cb7e259;margin-top:-6px}
+  input[type=range]::-moz-range-thumb{width:10px;height:10px;border:3px solid #a8bfdc;border-radius:50%;background:#ecf3ff}
+  .buttons{display:flex;gap:7px;align-self:center;padding-left:18px;border-left:1px solid var(--line)}
+  button{width:36px;height:36px;border-radius:10px;border:1px solid rgba(218,233,252,.15);background:rgba(235,245,255,.045);color:#dee8f7;cursor:pointer;display:grid;place-items:center;transition:background .16s;flex-shrink:0}button:hover{background:rgba(235,245,255,.14)}button:focus-visible,input:focus-visible{outline:2px solid #acc5eb;outline-offset:3px}
+  svg{height:17px;width:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  #showControls{position:fixed;right:22px;bottom:22px;z-index:3;opacity:0;pointer-events:none;transition:opacity .25s;background:rgba(15,24,36,.66);backdrop-filter:blur(12px)}#showControls.visible{opacity:.7;pointer-events:auto}#showControls:hover{opacity:1}
+  @media(max-width:680px){.panel{gap:11px;padding:15px;width:calc(100vw - 24px);flex-direction:column}.sliders{width:100%;gap:14px}.meta{font-size:10px;flex-wrap:wrap}.value{font-size:10px}.buttons{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:9px;width:100%;justify-content:center}button{width:32px;height:32px}}
+  @media(max-width:390px){.sliders{gap:8px}.meta{display:block}.value{display:block;margin-top:3px}}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-label="Interactive Newtonian orbit visualization"></canvas>
+<div class="panel" id="panel" role="group" aria-label="Orbit controls">
+  <div class="sliders">
+    <div class="slider-wrap"><div class="meta"><label for="mass">Sun’s mass</label><output class="value" id="massValue">1.00 M☉</output></div><input id="mass" type="range" min="0.3" max="3" step="0.01" value="1" /></div>
+    <div class="slider-wrap"><div class="meta"><label for="distance">Starting distance</label><output class="value" id="distanceValue">1.00 AU</output></div><input id="distance" type="range" min="0.5" max="3" step="0.01" value="1" /></div>
+    <div class="slider-wrap"><div class="meta"><label for="speed">Earth’s speed</label><output class="value" id="speedValue">1.00 × v₍circ₎</output></div><input id="speed" type="range" min="0.5" max="1.5" step="0.01" value="1" /></div>
+  </div>
+  <div class="buttons">
+    <button id="pause" aria-label="Pause animation" title="Pause / Play · Space"><svg id="pauseIcon" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></button>
+    <button id="reset" aria-label="Reset to default orbit" title="Reset · R"><svg viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2.8 6.5M3 5v6h6"/></svg></button>
+    <button id="hide" aria-label="Hide controls" title="Hide controls · H"><svg viewBox="0 0 24 24"><path d="M4 4l16 16M10.5 5.2A11.6 11.6 0 0 1 12 5c5 0 9 7 9 7a16.4 16.4 0 0 1-3.4 4.1M6.1 6.2C3.8 8.1 3 12 3 12s4 7 9 7a8 8 0 0 0 3.5-.9"/><path d="M10 10a3 3 0 0 0 4 4"/></svg></button>
+  </div>
+</div>
+<button id="showControls" aria-label="Show controls" title="Show controls · H"><svg viewBox="0 0 24 24"><path d="M3 12s4-7 9-7 9 7 9 7-4 7-9 7-9-7-9-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+<script>
+(() => {
+'use strict';
+// Physical units: AU, years, solar masses. G=4π² AU³/(M☉ yr²).
+// The Sun is an inertial, stationary central mass; Earth's negligible backreaction is omitted.
+const G=4*Math.PI*Math.PI, TAU=2*Math.PI;
+const canvas=document.getElementById('sky'),ctx=canvas.getContext('2d',{alpha:false});
+const els=Object.fromEntries(['mass','distance','speed','massValue','distanceValue','speedValue','panel','pause','pauseIcon','reset','hide','showControls'].map(id=>[id,document.getElementById(id)]));
+let mass=1,startR=1,speedFactor=1;
+let state={x:1,y:0,vx:0,vy:TAU},trace=[{x:1,y:0}],paused=false,hidden=false;
+let W=1,H=1,dpr=1,stars=[],camera=3.1,last=0,carry=0;
+const BASE_DAYS_PER_SECOND=80; // a one-year orbit takes ~4.56 real seconds
+const DAY_YEARS=1/365.25, MAX_STEP=0.00125; // <= 0.4566 days per velocity-Verlet step
+const MAX_TRACE=11500;
+function circularSpeed(r){return Math.sqrt(G*mass/r)}
+function updateLabels(){els.massValue.textContent=mass.toFixed(2)+' M☉';els.distanceValue.textContent=startR.toFixed(2)+' AU';els.speedValue.textContent=speedFactor.toFixed(2)+' × v₍circ₎'}
+function newStart(){state={x:startR,y:0,vx:0,vy:circularSpeed(startR)*speedFactor};trace=[{x:state.x,y:state.y}];carry=0;camera=Math.max(camera,startR*1.6)}
+function acceleration(x,y){const r2=Math.max(x*x+y*y,1e-12),inv=1/(r2*Math.sqrt(r2));return {x:-G*mass*x*inv,y:-G*mass*y*inv}}
+function verlet(dt){const a=acceleration(state.x,state.y);state.x+=state.vx*dt+.5*a.x*dt*dt;state.y+=state.vy*dt+.5*a.y*dt*dt;const b=acceleration(state.x,state.y);state.vx+=.5*(a.x+b.x)*dt;state.vy+=.5*(a.y+b.y)*dt}
+function speedChange(){// Velocity always set to tangential to instantaneous position.
+  const r=Math.hypot(state.x,state.y),dirX=-state.y/r,dirY=state.x/r;
+  const sign=(state.x*state.vy-state.y*state.vx)>=0?1:-1;
+  const v=speedFactor*circularSpeed(r);state.vx=sign*dirX*v;state.vy=sign*dirY*v;
+  trace.push({x:NaN,y:NaN}); // don't draw a misleading line across an intervention
+}
+function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const rand=mulberry32(49128);stars=Array.from({length:Math.max(140,Math.floor(W*H/4500))},()=>({x:rand()*W,y:rand()*H,s:.3+rand()*1.1,a:.08+rand()*.35}));}
+function mulberry32(seed){return ()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function draw(){
+ ctx.fillStyle='#05080d';ctx.fillRect(0,0,W,H);
+ for(const p of stars){ctx.fillStyle=`rgba(204,220,244,${p.a})`;ctx.beginPath();ctx.arc(p.x,p.y,p.s,0,TAU);ctx.fill()}
+ const cx=W*.5,cy=H*.46,unit=Math.min(W*.47,H*.425)/camera;
+ const project=(x,y)=>[cx+x*unit,cy-y*unit];
+ // Orbital traces have breaks at physical interventions. Glow remains extremely subtle.
+ ctx.beginPath();let connected=false;
+ for(const p of trace){if(!Number.isFinite(p.x)){connected=false;continue}let [x,y]=project(p.x,p.y);if(!connected){ctx.moveTo(x,y);connected=true}else ctx.lineTo(x,y)}
+ ctx.strokeStyle='rgba(126,170,222,.36)';ctx.lineWidth=1.15;ctx.stroke();
+ const rSun=Math.max(11,Math.min(23,Math.min(W,H)*.028));
+ const halo=ctx.createRadialGradient(cx,cy,0,cx,cy,rSun*7);
+ halo.addColorStop(0,'rgba(255,201,111,.23)');halo.addColorStop(.17,'rgba(245,145,49,.15)');halo.addColorStop(.42,'rgba(240,121,45,.047)');halo.addColorStop(1,'rgba(240,121,45,0)');
+ ctx.fillStyle=halo;ctx.beginPath();ctx.arc(cx,cy,rSun*7,0,TAU);ctx.fill();
+ const sun=ctx.createRadialGradient(cx-rSun*.35,cy-rSun*.4,rSun*.06,cx,cy,rSun);
+ sun.addColorStop(0,'#fff8df');sun.addColorStop(.38,'#ffe4a2');sun.addColorStop(.79,'#ffaf4b');sun.addColorStop(1,'#d76622');ctx.fillStyle=sun;ctx.beginPath();ctx.arc(cx,cy,rSun,0,TAU);ctx.fill();
+ const [ex,ey]=project(state.x,state.y);const re=Math.max(5,Math.min(9,Math.min(W,H)*.012));
+ if(ex>-40&&ex<W+40&&ey>-40&&ey<H+40){
+   const earthGlow=ctx.createRadialGradient(ex,ey,0,ex,ey,re*3);earthGlow.addColorStop(0,'rgba(97,171,239,.18)');earthGlow.addColorStop(1,'rgba(97,171,239,0)');ctx.fillStyle=earthGlow;ctx.beginPath();ctx.arc(ex,ey,re*3,0,TAU);ctx.fill();
+   const earth=ctx.createRadialGradient(ex-re*.36,ey-re*.48,re*.15,ex,ey,re*1.18);earth.addColorStop(0,'#f0f8ff');earth.addColorStop(.25,'#9fd0e6');earth.addColorStop(.55,'#316ca7');earth.addColorStop(.83,'#153b69');earth.addColorStop(1,'#061728');ctx.fillStyle=earth;ctx.beginPath();ctx.arc(ex,ey,re,0,TAU);ctx.fill();
+   ctx.save();ctx.beginPath();ctx.arc(ex,ey,re,0,TAU);ctx.clip();ctx.fillStyle='rgba(237,248,255,.80)';ctx.beginPath();ctx.ellipse(ex-re*.16,ey-re*.17,re*.59,re*.16,.45,0,TAU);ctx.ellipse(ex+re*.25,ey+re*.37,re*.36,re*.13,-.6,0,TAU);ctx.fill();ctx.restore();
+ }
+}
+function advance(seconds){if(paused)return;let remaining=seconds*BASE_DAYS_PER_SECOND*DAY_YEARS;let substeps=0;
+ while(remaining>0&&substeps<1800){const r=Math.hypot(state.x,state.y);const localPeriod=TAU*Math.sqrt(Math.max(r,1e-5)**3/(G*mass));const dt=Math.min(remaining,MAX_STEP,localPeriod/180);
+ if(!Number.isFinite(dt)||dt<=0)break;
+ verlet(dt);remaining-=dt;substeps++;
+ if(substeps%3===0){trace.push({x:state.x,y:state.y});if(trace.length>MAX_TRACE)trace.splice(0,trace.length-MAX_TRACE)}
+ // A direct hit on the Sun: let Earth pass through the origin only up to this numerical collision radius.
+ // Stop integration on impact rather than artificially reversing the trajectory.
+ if(Math.hypot(state.x,state.y)<0.00465){paused=true;syncPause();break}
+ }
+}
+function desiredCamera(){let far=Math.max(1.05,Math.hypot(state.x,state.y),startR);for(let i=Math.max(0,trace.length-2200);i<trace.length;i+=13){const p=trace[i];if(Number.isFinite(p.x))far=Math.max(far,Math.hypot(p.x,p.y))}return Math.max(1.65,far*1.65)}
+function frame(timestamp){const delta=last?Math.min((timestamp-last)/1000,.05):0;last=timestamp;advance(delta);const goal=desiredCamera();camera+= (goal-camera)*(1-Math.exp(-delta*(goal>camera?3.2:1.2)));draw();requestAnimationFrame(frame)}
+function syncPause(){els.pauseIcon.innerHTML=paused?'<path d="m8 5 11 7-11 7z"/>':'<path d="M9 5v14M15 5v14"/>';els.pause.setAttribute('aria-label',paused?'Play animation':'Pause animation')}
+function togglePause(){paused=!paused;syncPause()}
+function toggleControls(){hidden=!hidden;els.panel.classList.toggle('hidden',hidden);els.showControls.classList.toggle('visible',hidden);els.showControls.tabIndex=hidden?0:-1}
+function reset(){mass=1;startR=1;speedFactor=1;els.mass.value='1';els.distance.value='1';els.speed.value='1';paused=false;camera=3.1;newStart();updateLabels();syncPause()}
+// Mass changes do NOT change x, y, vx or vy: only the gravitational field changes.
+els.mass.addEventListener('input',()=>{mass=+els.mass.value;updateLabels();trace.push({x:NaN,y:NaN})});
+// Radius changes reset the initial point and use v=factor * sqrt(G*M/r_new).
+els.distance.addEventListener('input',()=>{startR=+els.distance.value;newStart();updateLabels()});
+// Speed changes set the instantaneous tangential speed relative to local circular speed.
+els.speed.addEventListener('input',()=>{speedFactor=+els.speed.value;speedChange();updateLabels()});
+els.pause.addEventListener('click',togglePause);els.reset.addEventListener('click',reset);els.hide.addEventListener('click',toggleControls);els.showControls.addEventListener('click',toggleControls);
+window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement && e.code!=='Escape')return;if(e.code==='Space'){e.preventDefault();togglePause()}else if(e.key.toLowerCase()==='r'){reset()}else if(e.key.toLowerCase()==='h'||e.code==='Escape'){toggleControls()}});
+window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{last=0});
+resize();newStart();updateLabels();syncPause();els.showControls.tabIndex=-1;requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
